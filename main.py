@@ -4,9 +4,11 @@ import itertools
 import queue as queue_lib
 
 class Bottle:
+    name: str
     contents: list[str]
 
-    def __init__(self, contents: list[str]):
+    def __init__(self, name: str, contents: list[str]):
+        self.name = name
         self.contents = contents
         self._validate()
 
@@ -75,11 +77,16 @@ class State:
         for bottle in bottles:
             self.add_bottle(bottle)
 
-    def find_bottle(self, bottle_to_find: Bottle) -> Bottle:
+    def find_bottle(self, bottle_to_find: Bottle, skip_first: bool) -> Bottle:
+        count = 0
+        target_count = 1 if skip_first else 0
         for bottle_list in self.bottles.values():
             for bottle in bottle_list:
                 if str(bottle) == str(bottle_to_find):
-                    return bottle
+                    if count == target_count:
+                        return bottle
+                    else:
+                        count += 1
 
         raise RuntimeError(f'Cannot find {bottle_to_find} in {self}')
 
@@ -109,8 +116,8 @@ class State:
     def from_combination(self, bottle_1: Bottle, bottle_2: Bottle) -> 'State':
         new_state = self.copy()
 
-        bottle_1_in_new_state = new_state.find_bottle(bottle_1)
-        bottle_2_in_new_state = new_state.find_bottle(bottle_2)
+        bottle_1_in_new_state = new_state.find_bottle(bottle_1, skip_first=False)
+        bottle_2_in_new_state = new_state.find_bottle(bottle_2, skip_first=str(bottle_1) == str(bottle_2))
 
         new_state.remove_bottle(bottle_1_in_new_state)
         new_state.remove_bottle(bottle_2_in_new_state)
@@ -175,9 +182,13 @@ def get_all_next_states(state: State) -> list[State]:
 
         if 'empty' in state.bottles:
             for bottle in state.bottles[key]:
-                new_state = state.from_combination(Bottle([]), bottle)
+                if bottle.is_empty():
+                    continue
+
+                new_state = state.from_combination(Bottle('', []), bottle)
                 if str(new_state) not in seen_states:
                     seen_states.add(str(new_state))
+                    print('new next state', new_state)
                     next_states.append(new_state)
 
     return next_states
@@ -213,14 +224,26 @@ def get_winning_transition_chain(initial_state: State) -> list[StateTransition]:
 
 def main():
     bottles =  [
-        Bottle(['red', 'red', 'blue', 'blue']),
-        Bottle(['red', 'red', 'blue', 'blue']),
-        Bottle([]),
+        Bottle('R1 1', ['te', 'te', 'gre', 'bl']),
+        Bottle('R1 2', ['gr', 'li', 'pi', 'pu']),
+        Bottle('R1 3', ['br', 're', 'pu', 'ta']),
+        Bottle('R1 4', ['ta', 're', 'pi', 'ta']),
+        Bottle('R1 5', ['bl', 'ye', 're', 'gre']),
+        Bottle('R1 6', ['gre', 'br', 'gre', 'ye']),
+        Bottle('R1 7', ['tu', 're', 'pu', 'br']),
+
+        Bottle('R2 1', ['tu', 'pi', 'pu', 'tu']),
+        Bottle('R2 2', ['bl', 'te', 'gr', 'li']),
+        Bottle('R2 3', ['li', 'gr', 'ye', 'br']),
+        Bottle('R2 4', ['bl', 'tu', 'ye', 'gr']),
+        Bottle('R2 5', ['ta', 'pi', 'te', 'li']),
+        Bottle('R2 6', []),
+        Bottle('R2 7', []),
     ]
 
-    # I'm getting bad next states:
-    # Looking at 1 {'blue': '<red,red,blue,blue>,<red,red,blue,blue>', 'empty': '<>,<>'} is not valid from the given input
-
+    # bottles = [
+    #     Bottle([]),
+    # ]
 
     state = State(bottles)
     transitions = get_winning_transition_chain(state)
