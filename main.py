@@ -163,11 +163,13 @@ class State:
 class StateTransition:
     original_state: State | None
     new_state: State
+    bottle_1: Bottle | None
+    bottle_2: Bottle | None
 
     def __eq__(self, __value: object) -> bool:
         return True
 
-def get_all_next_states(state: State) -> list[State]:
+def get_all_next_states(state: State) -> list[tuple[Bottle, Bottle, State]]:
     seen_states = set([str(state)])
     next_states = []
     
@@ -175,28 +177,29 @@ def get_all_next_states(state: State) -> list[State]:
         pour_pairs = itertools.permutations(state.bottles[key], 2)
         for pair in pour_pairs:
             if pair[0].can_combine(pair[1]):
-                new_state = state.from_combination(pair[0], (pair[1]))
+                new_state = state.from_combination(pair[0], pair[1])
                 if str(new_state) not in seen_states:
                     seen_states.add(str(new_state))
-                    next_states.append(new_state)
+                    next_states.append((pair[0], pair[1] ,new_state))
 
         if 'empty' in state.bottles:
             for bottle in state.bottles[key]:
                 if bottle.is_empty():
                     continue
-
-                new_state = state.from_combination(Bottle('', []), bottle)
+                
+                empty_bottle = state.find_bottle(Bottle('', []), skip_first=False)
+                new_state = state.from_combination(empty_bottle, bottle)
                 if str(new_state) not in seen_states:
                     seen_states.add(str(new_state))
                     print('new next state', new_state)
-                    next_states.append(new_state)
+                    next_states.append((empty_bottle, bottle, new_state))
 
     return next_states
 
 def get_winning_transition_chain(initial_state: State) -> list[StateTransition]:
     seen_states = set()
     queue = queue_lib.PriorityQueue()
-    queue.put((0, [StateTransition(None, initial_state)]))
+    queue.put((0, [StateTransition(None, initial_state, None, None)]))
 
     while not queue.empty():
         data = queue.get()
@@ -216,40 +219,54 @@ def get_winning_transition_chain(initial_state: State) -> list[StateTransition]:
 
         next_states = get_all_next_states(current.new_state)
         print('num next states', len(next_states))
-        for next_state in next_states:
-            item = (num_transitions + 1, transitions.copy() + [StateTransition(current.new_state.copy(), next_state)])
+        for bottle_1, bottle_2, next_state in next_states:
+            item = (num_transitions + 1, transitions.copy() + [StateTransition(current.new_state.copy(), next_state, bottle_1, bottle_2)])
             queue.put(item)
 
     return []
 
 def main():
-    bottles =  [
-        Bottle('R1 1', ['te', 'te', 'gre', 'bl']),
-        Bottle('R1 2', ['gr', 'li', 'pi', 'pu']),
-        Bottle('R1 3', ['br', 're', 'pu', 'ta']),
-        Bottle('R1 4', ['ta', 're', 'pi', 'ta']),
-        Bottle('R1 5', ['bl', 'ye', 're', 'gre']),
-        Bottle('R1 6', ['gre', 'br', 'gre', 'ye']),
-        Bottle('R1 7', ['tu', 're', 'pu', 'br']),
+    # bottles =  [
+    #     Bottle('R1 1', ['te', 'te', 'gre', 'bl']),
+    #     Bottle('R1 2', ['gr', 'li', 'pi', 'pu']),
+    #     Bottle('R1 3', ['br', 're', 'pu', 'ta']),
+    #     Bottle('R1 4', ['ta', 're', 'pi', 'ta']),
+    #     Bottle('R1 5', ['bl', 'ye', 're', 'gre']),
+    #     Bottle('R1 6', ['gre', 'br', 'gre', 'ye']),
+    #     Bottle('R1 7', ['tu', 're', 'pu', 'br']),
 
-        Bottle('R2 1', ['tu', 'pi', 'pu', 'tu']),
-        Bottle('R2 2', ['bl', 'te', 'gr', 'li']),
-        Bottle('R2 3', ['li', 'gr', 'ye', 'br']),
-        Bottle('R2 4', ['bl', 'tu', 'ye', 'gr']),
-        Bottle('R2 5', ['ta', 'pi', 'te', 'li']),
+    #     Bottle('R2 1', ['tu', 'pi', 'pu', 'tu']),
+    #     Bottle('R2 2', ['bl', 'te', 'gr', 'li']),
+    #     Bottle('R2 3', ['li', 'gr', 'ye', 'br']),
+    #     Bottle('R2 4', ['bl', 'tu', 'ye', 'gr']),
+    #     Bottle('R2 5', ['ta', 'pi', 'te', 'li']),
+    #     Bottle('R2 6', []),
+    #     Bottle('R2 7', []),
+    # ]
+
+    bottles =  [
+        Bottle('R1 1', ['yel', 'tre', 'ora', 'blu']),
+        Bottle('R1 2', ['cya', 'gre', 'pin', 'tre']),
+        Bottle('R1 3', ['yel', 'pur', 'sky', 'red']),
+        Bottle('R1 4', ['tre', 'sky', 'ora', 'pur']),
+        Bottle('R1 5', ['cya', 'gra', 'pin', 'blu']),
+        Bottle('R1 6', ['tre', 'yel', 'bro', 'cya']),
+        Bottle('R1 7', ['bro', 'sky', 'pin', 'red']),
+
+        Bottle('R2 1', ['ora', 'blu', 'cya', 'gra']),
+        Bottle('R2 2', ['yel', 'gra', 'gre', 'gre']),
+        Bottle('R2 3', ['sky', 'gre', 'pin', 'bro']),
+        Bottle('R2 4', ['bro', 'pur', 'red', 'gra']),
+        Bottle('R2 5', ['red', 'blu', 'pur', 'ora']),
         Bottle('R2 6', []),
         Bottle('R2 7', []),
     ]
-
-    # bottles = [
-    #     Bottle([]),
-    # ]
 
     state = State(bottles)
     transitions = get_winning_transition_chain(state)
 
     print('Winning transitions:')
     for transition in transitions:
-        print(f'\t{str(transition.original_state)} -> {transition.new_state}')
+        print(f'\t{transition.bottle_2.name if transition.bottle_2 else "None"} -> {transition.bottle_1.name if transition.bottle_1 else "None"}')
 
 main()
