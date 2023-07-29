@@ -1,0 +1,1 @@
+Solves arbitrary levels for [Soda Sort: Water Color Puzzle](https://play.google.com/store/apps/details?id=com.gma.soda.sort.puzzle).
